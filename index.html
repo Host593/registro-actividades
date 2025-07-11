@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro de Actividades Técnicas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="main-container">
+
+    <!-- Sidebar derecho -->
+    <aside class="sidebar">
+      <div class="widget reloj" id="reloj-digital">00:00:00</div>
+      <div class="widget calendario">
+        <h3>📅 Calendario</h3>
+        <div id="calendario"></div>
+        <div id="recordatorios"></div>
+      </div>
+      <div class="widget notas">
+        <h3>📝 Notas</h3>
+        <input type="text" id="nueva-nota" placeholder="Escribe una nota..." />
+        <button onclick="agregarNota()">Agregar Nota</button>
+        <ul id="lista-notas"></ul>
+      </div>
+    </aside>
+
+    <div class="container">
+      <div class="logo">
+        <img src="img/Logo.jpg" alt="Logo del Departamento Técnico" />
+      </div>
+
+      <h1>Registro de Actividades Técnicas</h1>
+
+      <form id="form-actividad">
+        <input type="text" id="Lugar" placeholder="Lugar / Aula" required />
+        <select id="Tipo" required onchange="mostrarCampoOtro(this)">
+  <option value="">Tipo de actividad</option>
+  <option value="Mantenimiento Preventivo">Mantenimiento Preventivo</option>
+  <option value="Eventualidad">Eventualidad</option>
+  <option value="Otro">Otro</option>
+</select>
+<select id="tecnico" required>
+  <option value="">Técnico responsable</option>
+  <option value="Jonathan">Jonathan</option>
+  <option value="Galo">Galo</option>
+  <option value="Equipo">Equipo</option>
+</select>
+
+<input type="text" id="TipoDetalle" placeholder="Especificar tipo..." style="display:none;" />
+        <input type="text" id="Solución" placeholder="Problema detectado" required />
+        <input type="text" id="tiempo" placeholder="Solución" required />
+        <input type="date" id="fecha" required />
+        <button type="submit">Registrar actividad</button>
+      </form>
+
+      <div class="acciones">
+        <button onclick="window.location.href='dashboard.html'" 
+        style="background-color:#001f4d; color:white; border:none; padding:12px 22px; border-radius:8px; cursor:pointer; font-weight:700; margin-top:20px; transition: background-color 0.3s ease;">
+        📊 Ver Dashboard </button>
+        <button onclick="exportarExcel()">Exportar a Excel</button>
+        <button onclick="activarAdmin()">Modo Admin 🔒</button>
+        <button id="borrar-todo" onclick="borrarTodo()" style="display: none;">Borrar todo</button>
+      </div>
+
+      <div class="filtros">
+  <input type="date" id="filtroFecha" />
+  <select id="filtroTipo">
+    <option value="">Todos los tipos</option>
+    <option value="Mantenimiento Preventivo">Mantenimiento Preventivo</option>
+    <option value="Eventualidad">Eventualidad</option>
+    <option value="Otro">Otro</option>
+  </select>
+  <button onclick="aplicarFiltros()">Filtrar</button>
+  <button onclick="limpiarFiltros()">Limpiar</button>
+</div>
+
+
+      <table id="tabla-actividades">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Lugar</th>
+            <th>Tipo de Actividad</th>
+            <th>Problema detectado</th>
+            <th>Solución</th>
+            <th>Fecha</th>
+            <th>Técnico</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer style="text-align:center; margin-top:40px; padding:20px; background-color:#001f4d; color:white; font-size:0.9rem;">
+    <p>Todos los derechos reservados © 2025</p> 
+    <p>Sistema desarrollado por Ing. Galo Solórzano Valdivia – Departamento Técnico</p>
+    <em>“Donde hay mar, hay misión; donde hay fallo, hay solución.”</em>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>
+    function activarAdmin() {
+      const clave = prompt("Ingresa la clave de administrador:");
+      if (clave === "ADMIN2025") {
+        document.getElementById("borrar-todo").style.display = "inline-block";
+        alert("Modo administrador activado.");
+      } else {
+        alert("Clave incorrecta.");
+      }
+    }
+  </script>
+</body>
+</html>
