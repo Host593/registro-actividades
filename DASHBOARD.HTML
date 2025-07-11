@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard - Resumen de Actividades Técnicas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF y html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f9faff;
+      color: #001f4d;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-weight: 900;
+    }
+    .dashboard-container {
+      max-width: 1200px;
+      margin: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      justify-content: center;
+    }
+    .card {
+      background: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      padding: 20px;
+      flex: 1 1 400px;
+      min-width: 300px;
+    }
+    canvas {
+      max-width: 100%;
+      height: 800px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 0.95rem;
+    }
+    table thead {
+      background-color: #001f4d;
+      color: white;
+    }
+    table th, table td {
+      padding: 10px;
+      border: 1px solid #c8d8ff;
+      text-align: left;
+    }
+    table tbody tr:hover {
+      background-color: #dbe7ff;
+      cursor: default;
+    }
+    button {
+      display: block;
+      margin: 30px auto 0 auto;
+      padding: 12px 25px;
+      font-weight: 700;
+      background-color: #001f4d;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #3359ff;
+    }
+    @media(max-width: 700px) {
+      .dashboard-container {
+        flex-direction: column;
+        gap: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Dashboard - Resumen de Actividades Técnicas</h1>
+
+  <button id="btnVolver" onclick="volverPrincipal()">← Volver al Registro</button>
+
+  <div class="dashboard-container">
+
+    <section class="card">
+      <h2>Resumen por Tipo de Problema</h2>
+      <canvas id="graficoTipos"></canvas>
+      <ul id="resumenTipos"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Actividades por Fecha</h2>
+      <canvas id="graficoFechas"></canvas>
+    </section>
+
+    <section class="card">
+      <h2>Problemas por Lugar / Curso</h2>
+      <canvas id="graficoProblemasLugar"></canvas>
+    </section>
+
+    <section class="card">
+      <h2>Casos por Técnico</h2>
+      <canvas id="graficoTecnicos"></canvas>
+    </section>
+
+
+    <section class="card" style="flex-basis: 100%;">
+      <h2>Últimas Actividades Registradas</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Lugar</th>d
+            <th>Tipo de Actividad</th>
+            <th>Problema detectado</th>
+            <th>Solución</th>
+            <th>Fecha</th>
+            <th>Técnico</th>
+          </tr>
+        </thead>
+        <tbody id="tablaUltimas"></tbody>
+      </table>
+    </section>
+
+  </div>
+
+  <!-- Botón para generar PDF -->
+  <button id="btnGenerarPDF">📄 Generar Reporte PDF</button>
+
+  <script>
+    // Leer datos de localStorage
+    const actividades = JSON.parse(localStorage.getItem('actividades')) || [];
+
+    // --- Datos para resumen por tipo ---
+    const tiposConteo = {};
+    actividades.forEach(act => {
+      const tipo = act.problema || 'Sin especificar';
+      tiposConteo[tipo] = (tiposConteo[tipo] || 0) + 1;
+    });
+
+    // Crear lista resumen texto
+    const resumenTiposUL = document.getElementById('resumenTipos');
+    for (const [tipo, count] of Object.entries(tiposConteo)) {
+      const li = document.createElement('li');
+      li.textContent = `${tipo}: ${count} actividad${count > 1 ? 'es' : ''}`;
+      resumenTiposUL.appendChild(li);
+    }
+
+    // --- Gráfico pastel por tipo ---
+    const ctxTipos = document.getElementById('graficoTipos').getContext('2d');
+    const colores = [
+      '#3359ff', '#557eff', '#aac6ff', '#1445a6', '#002e5b', '#84a9ff', '#2e4e9a',
+      '#5a88d6', '#001f4d', '#9bbcff'
+    ];
+    const chartTipos = new Chart(ctxTipos, {
+      type: 'pie',
+      data: {
+        labels: Object.keys(tiposConteo),
+        datasets: [{
+          data: Object.values(tiposConteo),
+          backgroundColor: colores.slice(0, Object.keys(tiposConteo).length),
+          borderColor: 'white',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: { enabled: true }
+        }
+      }
+    });
+
+    // --- Datos para gráfico de actividades por fecha ---
+    const fechasConteo = {};
+    actividades.forEach(act => {
+      fechasConteo[act.fecha] = (fechasConteo[act.fecha] || 0) + 1;
+    });
+
+    // Ordenar fechas cronológicamente
+    const fechasOrdenadas = Object.keys(fechasConteo).sort();
+
+    // Crear gráfico barras por fecha
+    const ctxFechas = document.getElementById('graficoFechas').getContext('2d');
+    const chartFechas = new Chart(ctxFechas, {
+      type: 'bar',
+      data: {
+        labels: fechasOrdenadas,
+        datasets: [{
+          label: 'Cantidad de actividades',
+          data: fechasOrdenadas.map(f => fechasConteo[f]),
+          backgroundColor: '#3359ff'
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            ticks: {
+              maxRotation: 90,
+              minRotation: 45,
+              autoSkip: true,
+              maxTicksLimit: 15
+            }
+          },
+          y: {
+            beginAtZero: true,
+            stepSize: 1
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: true }
+        }
+      }
+    });
+
+    // --- Datos para gráfico de problemas por lugar ---
+    const lugarConteo = {};
+    actividades.forEach(act => {
+      const lugar = act.lugar || "Sin especificar";
+      lugarConteo[lugar] = (lugarConteo[lugar] || 0) + 1;
+    });
+
+    const ctxLugar = document.getElementById('graficoProblemasLugar').getContext('2d');
+    const chartLugar = new Chart(ctxLugar, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(lugarConteo),
+        datasets: [{
+          label: 'Cantidad de problemas',
+          data: Object.values(lugarConteo),
+          backgroundColor: 'rgba(0, 31, 77, 0.7)',
+          borderColor: 'rgba(0, 31, 77, 1)',
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
+          }
+        },
+        plugins: {
+          legend: { display: true },
+          tooltip: { enabled: true }
+        }
+      }
+    });
+
+    // --- Datos para gráfico de actividades por técnico ---
+const tecnicoConteo = {};
+actividades.forEach(act => {
+  const tecnico = act.tecnico || "Sin asignar";
+  tecnicoConteo[tecnico] = (tecnicoConteo[tecnico] || 0) + 1;
+});
+
+const ctxTecnicos = document.getElementById('graficoTecnicos').getContext('2d');
+const chartTecnicos = new Chart(ctxTecnicos, {
+  type: 'bar',
+  data: {
+    labels: Object.keys(tecnicoConteo),
+    datasets: [{
+      label: 'Actividades',
+      data: Object.values(tecnicoConteo),
+      backgroundColor: '#84a9ff',
+      borderColor: '#001f4d',
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: true }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { stepSize: 1 }
+      }
+    }
+  }
+});
+
+
+    // --- Tabla últimas actividades ---
+    const tbodyUltimas = document.getElementById('tablaUltimas');
+    tbodyUltimas.innerHTML = "";
+
+    actividades
+      .slice()
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+      .slice(0, 10)
+      .forEach((act, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${act.lugar}</td>
+          <td>${act.problema}</td>
+          <td>${act.solucion}</td>
+          <td>${act.tiempo}</td>
+          <td>${act.fecha}</td>
+          <td>${act.tecnico || "Sin asignar"}</td>
+        `;
+        tbodyUltimas.appendChild(tr);
+      });
+
+    // --- Función para volver a la página principal ---
+    function volverPrincipal() {
+      window.location.href = "index.html";
+    }
+
+    // --- Función para generar reporte PDF ---
+    document.getElementById('btnGenerarPDF').addEventListener('click', async () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const margen = 15;
+  let y = 20;
+
+  // Título
+  doc.setTextColor('#001f4d');
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Reporte de Actividades Técnicas", margen, y);
+  y += 10;
+
+  // Fecha
+  doc.setFontSize(9);
+  doc.setTextColor('#555555');
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Fecha de generación: ${new Date().toLocaleString()}`, margen, y);
+  y += 12;
+
+  // Línea separadora
+  doc.setDrawColor('#001f4d');
+  doc.setLineWidth(0.7);
+  doc.line(margen, y, 195 - margen, y);
+  y += 8;
+
+  // Resumen tipo problema
+  doc.setFontSize(13);
+  doc.setTextColor('#001f4d');
+  doc.setFont('helvetica', 'bold');
+  doc.text("Resumen por Tipo de Problema:", margen, y);
+  y += 8;
+
+  doc.setFontSize(11);
+  doc.setTextColor('#000000');
+  doc.setFont('helvetica', 'normal');
+
+  let resumenText = "";
+  for (const [tipo, count] of Object.entries(tiposConteo)) {
+    resumenText += `• ${tipo}: ${count} actividad${count > 1 ? 'es' : ''}\n`;
+  }
+  const splitResumen = doc.splitTextToSize(resumenText, 180);
+  doc.text(splitResumen, margen, y);
+  y += splitResumen.length * 3 + 1;
+
+  // Línea separadora
+  doc.setDrawColor('#001f4d');
+  doc.setLineWidth(0.5);
+  doc.line(margen, y, 195 - margen, y);
+  y += 6;
+
+  // Función para añadir imágenes de gráficos más pequeños
+  async function addChartImage(canvas, x, yPos, width) {
+    return new Promise((resolve) => {
+      const imgData = canvas.toDataURL('image/png');
+      const scale = 0.6; // reducir tamaño a 60%
+      const height = (canvas.height * width * scale) / canvas.width;
+      if (yPos + height > 280) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.addImage(imgData, 'PNG', x, yPos, width * scale, height, undefined, 'FAST');
+      resolve(yPos + height + 10);
+    });
+  }
+
+  // Insertar gráficos con menor tamaño para mejor distribución
+  y = await addChartImage(document.getElementById('graficoTipos'), margen, y, 180);
+  y = await addChartImage(document.getElementById('graficoFechas'), margen, y, 180);
+  y = await addChartImage(document.getElementById('graficoProblemasLugar'), margen, y, 180);
+  y = await addChartImage(document.getElementById('graficoTecnicos'), margen, y, 180);
+
+  // Línea separadora antes tabla
+  if(y + 20 > 280) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.setDrawColor('#001f4d');
+  doc.setLineWidth(0.7);
+  doc.line(margen, y, 195 - margen, y);
+  y += 10;
+
+  // Título tabla
+  doc.setFontSize(13);
+  doc.setTextColor('#001f4d');
+  doc.setFont('helvetica', 'bold');
+  doc.text("Últimas Actividades Registradas:", margen, y);
+  y += 10;
+
+  // Encabezado tabla con fondo azul oscuro
+ const headers = ["#", "Lugar", "Tipo / Problema", "Solución", "Tiempo", "Fecha", "Técnico"];
+const colWidths = [8, 25, 40, 40, 20, 25, 30];
+  let startX = margen;
+  let startY = y;
+
+  doc.setFontSize(9);
+  doc.setFillColor(0, 31, 77);
+  doc.setTextColor(255, 255, 255);
+  headers.forEach((header, i) => {
+    const x = startX + colWidths.slice(0, i).reduce((a,b) => a + b, 0);
+    doc.rect(x, startY - 7, colWidths[i], 7, 'F');
+    doc.text(header, x + 2, startY - 3);
+  });
+  doc.setTextColor(0, 0, 0);
+
+  // Filas con fondo alterno
+  let filaY = startY;
+  actividades
+    .slice()
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    .slice(0, 10)
+    .forEach((act, i) => {
+      filaY += 7;
+      const xFila = startX;
+      if(i % 2 === 0){
+        doc.setFillColor(220, 230, 255);
+        doc.rect(xFila, filaY - 6, colWidths.reduce((a,b) => a + b, 0), 7, 'F');
+      }
+      const rowData = [
+        (i+1).toString(),
+        act.lugar,
+        act.problema,
+        act.solucion,
+        act.tiempo,
+        act.fecha,
+        act.tecnico || "Sin asignar"
+      ];
+      rowData.forEach((txt, idx) => {
+        const x = startX + colWidths.slice(0, idx).reduce((a,b) => a + b, 0) + 2;
+        const textoCorto = String(txt).length > 20 ? String(txt).substring(0, 17) + "..." : txt;
+        doc.text(textoCorto, x, filaY);
+      });
+      if(filaY > 270){
+        doc.addPage();
+        filaY = 20;
+      }
+    });
+
+  // Pie de página
+  const pageCount = doc.getNumberOfPages();
+  for(let i=1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor('#555555');
+    doc.text(`Página ${i} de ${pageCount}`, 180, 290);
+    doc.text('© 2025 – Departamento Técnico', margen, 290);
+  }
+
+  doc.save("reporte_actividades_compacto.pdf");
+});
+
+
+  </script>
+
+<footer style="text-align:center; margin-top:40px; padding:20px; background-color:#001f4d; color:white; font-size:0.9rem;">
+  <p>Todos los derechos reservados © 2025</p> 
+  <p>Sistema desarrollado por Ing. Galo Solórzano Valdivia – Departamento Técnico</p>
+  <em>“Donde hay mar, hay misión; donde hay fallo, hay solución.”</em>
+</footer>
+</body>
+</html>
